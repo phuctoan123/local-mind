@@ -1,0 +1,2 @@
+"""LocalMind backend package."""
+
