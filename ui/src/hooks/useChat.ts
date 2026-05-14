@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { createSession, Source, streamChat } from '../api/client';
+import { CitationValidation, createSession, Source, streamChat } from '../api/client';
 
 export type ChatMessage = {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   sources?: Source[];
+  citationValidation?: CitationValidation;
   latencyMs?: number;
 };
 
@@ -51,6 +52,15 @@ export function useChat() {
               current.map((message) =>
                 message.id === assistantId
                   ? { ...message, content: `${message.content}${event.content}` }
+                  : message
+              )
+            );
+          }
+          if (event.type === 'citation_validation') {
+            setMessages((current) =>
+              current.map((message) =>
+                message.id === assistantId
+                  ? { ...message, citationValidation: event.validation }
                   : message
               )
             );

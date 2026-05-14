@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
 import time
+from collections.abc import AsyncIterator
 
 from app.config import settings
 from app.db.repositories.session_repo import SessionRepo
 from app.ingestion.chunker import estimate_tokens
-from app.models.chat import ChatRequest, ChatResponse, Source
+from app.models.chat import ChatRequest, ChatResponse, CitationValidation, Source
+from app.services.citation_validator import CitationValidator
 from app.services.llm_client import OllamaClient
 from app.services.retrieval_engine import RetrievalEngine
 from app.services.vector_store import RetrievedChunk
@@ -18,10 +19,12 @@ class RagService:
         retrieval_engine: RetrievalEngine,
         llm_client: OllamaClient,
         session_repo: SessionRepo | None = None,
+        citation_validator: CitationValidator | None = None,
     ):
         self.retrieval_engine = retrieval_engine
         self.llm_client = llm_client
         self.session_repo = session_repo
+        self.citation_validator = citation_validator or CitationValidator()
 
     async def chat(self, request: ChatRequest) -> ChatResponse:
         started = time.perf_counter()
@@ -47,10 +50,10 @@ class RagService:
                 sources=[],
                 session_id=request.session_id,
                 latency_ms=_latency_ms(started),
-            )
+        )
 
         history = ""
-        if request.session_id and self.session_repo and self.session_repo.exists(request.session_id):
+        if _session_exists(self.session_repo, request.session_id):
             history = _format_history(
                 self.session_repo.history(request.session_id, settings.max_history_turns)
             )
@@ -81,7 +84,8 @@ class RagService:
             )
             for chunk in chunks
         ]
-        if request.session_id and self.session_repo and self.session_repo.exists(request.session_id):
+        validation = _validate_citations(self.citation_validator, str(answer), chunks)
+        if _session_exists(self.session_repo, request.session_id):
             self.session_repo.add_message(
                 request.session_id,
                 "assistant",
@@ -91,6 +95,7 @@ class RagService:
         return ChatResponse(
             answer=str(answer),
             sources=sources,
+            citation_validation=validation,
             session_id=request.session_id,
             latency_ms=_latency_ms(started),
         )
@@ -132,7 +137,7 @@ class RagService:
             return
 
         history = ""
-        if request.session_id and self.session_repo and self.session_repo.exists(request.session_id):
+        if _session_exists(self.session_repo, request.session_id):
             history = _format_history(
                 self.session_repo.history(request.session_id, settings.max_history_turns)
             )
@@ -159,7 +164,10 @@ class RagService:
             yield {"type": "token", "content": token}
 
         answer = "".join(answer_parts)
-        if request.session_id and self.session_repo and self.session_repo.exists(request.session_id):
+        validation = _validate_citations(self.citation_validator, answer, chunks)
+        if validation:
+            yield {"type": "citation_validation", "validation": validation.model_dump()}
+        if _session_exists(self.session_repo, request.session_id):
             self.session_repo.add_message(
                 request.session_id,
                 "assistant",
@@ -187,15 +195,25 @@ def build_prompt(
         token_total += token_count
     context = "\n\n".join(context_parts)
     confidence_note = (
-        "The retrieved context has low similarity scores. Be conservative and say when the context is insufficient."
+        "The retrieved context has low similarity scores. "
+        "Be conservative and say when the context is insufficient."
         if low_confidence
         else ""
     )
+    system_prompt = "\n".join(
+        [
+            "You are a precise document assistant.",
+            "Answer the user's question using ONLY the provided context.",
+            'If the context is insufficient, say: "I could not find relevant information '
+            'in the provided documents."',
+            "Do NOT use external knowledge.",
+            "Cite sources by referencing the document name and page number.",
+            "Keep the answer concise.",
+            "Prefer 3 short bullet points or fewer unless the user asks for detail.",
+        ]
+    )
     return f"""<system>
-You are a precise document assistant. Answer the user's question using ONLY the provided context.
-If the context does not contain sufficient information, say: "I could not find relevant information in the provided documents."
-Do NOT use any external knowledge. Cite your sources by referencing the document name and page number.
-Keep the answer concise. Prefer 3 short bullet points or fewer unless the user explicitly asks for detail.
+{system_prompt}
 {confidence_note}
 </system>
 
@@ -220,3 +238,24 @@ def _format_history(messages: list[dict]) -> str:
 
 def _latency_ms(started: float) -> int:
     return int((time.perf_counter() - started) * 1000)
+
+
+def _session_exists(repo: SessionRepo | None, session_id: str | None) -> bool:
+    return bool(session_id and repo and repo.exists(session_id))
+
+
+def _validate_citations(
+    validator: CitationValidator,
+    answer: str,
+    chunks: list[RetrievedChunk],
+) -> CitationValidation | None:
+    if not settings.enable_citation_validation:
+        return None
+    result = validator.validate(answer, chunks)
+    return CitationValidation(
+        status=result.status,
+        coverage_score=result.coverage_score,
+        cited_sources=result.cited_sources,
+        supporting_sources=result.supporting_sources,
+        warnings=result.warnings,
+    )

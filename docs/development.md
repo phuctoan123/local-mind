@@ -27,6 +27,21 @@ pytest
 
 Ollama and ChromaDB are only required for full integration flows. The unit tests focus on pure logic that can run offline.
 
+## Hybrid Retrieval
+
+LocalMind can combine semantic vector search with BM25 keyword search:
+
+```env
+RETRIEVAL_MODE=hybrid
+VECTOR_TOP_K=20
+BM25_TOP_K=20
+RRF_K=60
+TOP_K=3
+```
+
+Set `RETRIEVAL_MODE=vector` to use vector-only retrieval. The UI can pass
+`document_ids` by selecting ready documents in the sidebar.
+
 ## Google AI Studio Mode
 
 Set these values in `.env`:

@@ -11,6 +11,14 @@ class Source(BaseModel):
     score: float
 
 
+class CitationValidation(BaseModel):
+    status: str
+    coverage_score: float
+    cited_sources: int
+    supporting_sources: list[str]
+    warnings: list[str]
+
+
 class ChatRequest(BaseModel):
     query: str = Field(..., min_length=1)
     session_id: str | None = None
@@ -22,6 +30,7 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     answer: str
     sources: list[Source]
+    citation_validation: CitationValidation | None = None
     session_id: str | None = None
     latency_ms: int
 

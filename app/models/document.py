@@ -22,6 +22,7 @@ class DocumentResponse(BaseModel):
     status: DocumentStatus
     chunk_count: int = 0
     error_message: str | None = None
+    collection_ids: list[str] = Field(default_factory=list)
     created_at: str
     updated_at: str
 

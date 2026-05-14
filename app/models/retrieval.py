@@ -21,3 +21,26 @@ class ChunkSearchResponse(BaseModel):
     object: str = "list"
     model: str = "localmind"
     data: list[RetrievedSource]
+
+
+class RetrievalDebugRequest(ChunkSearchRequest):
+    pass
+
+
+class RankedRetrievedSource(RetrievedSource):
+    rank: int
+
+
+class RetrievalDebugResponse(BaseModel):
+    object: str = "retrieval_debug"
+    model: str = "localmind"
+    original_query: str
+    effective_query: str
+    query_was_rewritten: bool
+    mode: str
+    vector: list[RankedRetrievedSource]
+    bm25: list[RankedRetrievedSource]
+    fused: list[RankedRetrievedSource]
+    reranked: list[RankedRetrievedSource]
+    fallback: list[RankedRetrievedSource]
+    data: list[RankedRetrievedSource]

@@ -53,9 +53,17 @@ class Settings:
     chunk_size: int = int(os.getenv("CHUNK_SIZE", "512"))
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "64"))
     min_chunk_length: int = int(os.getenv("MIN_CHUNK_LENGTH", "50"))
+    retrieval_mode: str = os.getenv("RETRIEVAL_MODE", "hybrid")
     top_k: int = int(os.getenv("TOP_K", "3"))
     min_similarity_score: float = float(os.getenv("MIN_SIMILARITY_SCORE", "0.15"))
     max_context_tokens: int = int(os.getenv("MAX_CONTEXT_TOKENS", "1200"))
+    vector_top_k: int = int(os.getenv("VECTOR_TOP_K", "20"))
+    bm25_top_k: int = int(os.getenv("BM25_TOP_K", "20"))
+    rrf_k: int = int(os.getenv("RRF_K", "60"))
+    enable_query_rewriting: bool = _bool(os.getenv("ENABLE_QUERY_REWRITING", "true"))
+    enable_reranking: bool = _bool(os.getenv("ENABLE_RERANKING", "true"))
+    rerank_candidate_k: int = int(os.getenv("RERANK_CANDIDATE_K", "12"))
+    enable_citation_validation: bool = _bool(os.getenv("ENABLE_CITATION_VALIDATION", "true"))
     data_dir: Path = Path(os.getenv("DATA_DIR", "./data"))
     raw_files_dir: Path = Path(os.getenv("RAW_FILES_DIR", "./data/raw"))
     chroma_persist_dir: Path = Path(os.getenv("CHROMA_PERSIST_DIR", "./data/chroma"))
@@ -81,6 +89,24 @@ class Settings:
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
 
 settings = Settings()
+
+
+def get_active_llm_model() -> str:
+    provider = settings.llm_provider.lower()
+    if provider == "google":
+        return settings.google_model
+    if provider == "mistral":
+        return settings.mistral_model
+    return settings.ollama_model
+
+
+def get_active_embedding_model() -> str:
+    provider = settings.embedding_provider.lower()
+    if provider == "google":
+        return settings.google_embed_model
+    if provider == "mistral":
+        return settings.mistral_embed_model
+    return settings.ollama_embed_model
 
 
 def ensure_data_dirs() -> None:

@@ -9,6 +9,7 @@ from starlette import status
 from app.config import settings
 from app.database import get_connection
 from app.db.repositories.chunk_repo import ChunkRepo
+from app.db.repositories.collection_repo import CollectionRepo
 from app.db.repositories.document_repo import DocumentRepo
 from app.dependencies import get_vector_store
 from app.ingestion.worker import process_document
@@ -88,6 +89,7 @@ def list_documents(
 ):
     with get_connection() as conn:
         total, documents = DocumentRepo(conn).list(status_filter, page, page_size)
+        _attach_collection_ids(CollectionRepo(conn), documents)
     return DocumentListResponse(
         total=total,
         page=page,
@@ -100,6 +102,8 @@ def list_documents(
 def get_document(document_id: str):
     with get_connection() as conn:
         document = DocumentRepo(conn).get(document_id)
+        if document:
+            _attach_collection_ids(CollectionRepo(conn), [document])
     if not document:
         raise HTTPException(
             status_code=404,
@@ -160,3 +164,9 @@ def delete_document(document_id: str):
     except OSError:
         pass
     return None
+
+
+def _attach_collection_ids(repo: CollectionRepo, documents: list[dict]) -> None:
+    mapping = repo.document_collection_ids([document["id"] for document in documents])
+    for document in documents:
+        document["collection_ids"] = mapping.get(document["id"], [])

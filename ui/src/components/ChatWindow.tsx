@@ -2,6 +2,9 @@ import { RotateCcw, Send } from 'lucide-react';
 import { FormEvent, useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { ChatMessage } from '../hooks/useChat';
+import { CitationValidationBadge } from './CitationValidationBadge';
+import { ResearchPanel } from './ResearchPanel';
+import { RetrievalDebugPanel } from './RetrievalDebugPanel';
 import { SourceCitation } from './SourceCitation';
 
 export function ChatWindow({
@@ -9,13 +12,17 @@ export function ChatWindow({
   loading,
   error,
   onAsk,
-  onReset
+  onReset,
+  selectedDocumentCount,
+  selectedDocumentIds
 }: {
   messages: ChatMessage[];
   loading: boolean;
   error: string | null;
   onAsk: (query: string) => Promise<void>;
   onReset: () => void;
+  selectedDocumentCount: number;
+  selectedDocumentIds: string[];
 }) {
   const [query, setQuery] = useState('');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -46,12 +53,18 @@ export function ChatWindow({
       <div className="chat-toolbar">
         <div>
           <h1>LocalMind</h1>
-          <p>Private document Q&A, grounded in your local files.</p>
+          <p>
+            {selectedDocumentCount > 0
+              ? `Using ${selectedDocumentCount} selected document${selectedDocumentCount > 1 ? 's' : ''}.`
+              : 'Using all ready documents.'}
+          </p>
         </div>
         <button className="icon-button" aria-label="Start new session" onClick={onReset}>
           <RotateCcw size={18} />
         </button>
       </div>
+      <ResearchPanel selectedDocumentIds={selectedDocumentIds} />
+      <RetrievalDebugPanel selectedDocumentIds={selectedDocumentIds} />
 
       <div className="messages">
         {messages.length === 0 ? (
@@ -73,6 +86,9 @@ export function ChatWindow({
                 <p>{message.content}</p>
               )}
               {message.latencyMs ? <span className="latency">{message.latencyMs} ms</span> : null}
+              {message.citationValidation ? (
+                <CitationValidationBadge validation={message.citationValidation} />
+              ) : null}
               {message.sources?.length ? (
                 <div className="sources">
                   {message.sources.map((source, index) => (

@@ -40,7 +40,7 @@ async def chat(request: ChatRequest):
         service = RagService(get_retrieval_engine(), get_llm_client(), session_repo)
         if request.stream:
             return StreamingResponse(
-                _sse_chat(RagService(get_retrieval_engine(), get_llm_client()), request),
+                _sse_chat(request),
                 media_type="text/event-stream",
                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
             )
@@ -64,10 +64,16 @@ async def chat(request: ChatRequest):
             ) from exc
 
 
-async def _sse_chat(service: RagService, request: ChatRequest):
+async def _sse_chat(request: ChatRequest):
     try:
-        async for event in service.stream_chat_events(request):
-            yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+        with get_connection() as conn:
+            service = RagService(
+                get_retrieval_engine(),
+                get_llm_client(),
+                SessionRepo(conn) if request.session_id else None,
+            )
+            async for event in service.stream_chat_events(request):
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
     except EmbeddingServiceUnavailableError as exc:
         event = {
             "type": "error",

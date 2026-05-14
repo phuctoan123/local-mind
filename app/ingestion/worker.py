@@ -10,6 +10,10 @@ from app.ingestion.parsers import parser_for_mime_type
 from app.services.vector_store import VectorStore
 
 
+class IngestionError(RuntimeError):
+    pass
+
+
 async def process_document(document_id: str) -> None:
     with get_connection() as conn:
         doc_repo = DocumentRepo(conn)
@@ -21,14 +25,22 @@ async def process_document(document_id: str) -> None:
     try:
         parser = parser_for_mime_type(document["mime_type"])
         pages = parser.parse(document["file_path"])
+        if not any(page.text.strip() for page in pages):
+            raise IngestionError("No text could be extracted from this document.")
         chunker = RecursiveChunker(
             chunk_size=settings.chunk_size,
             chunk_overlap=settings.chunk_overlap,
             min_chunk_length=settings.min_chunk_length,
         )
         chunks = chunker.chunk(pages)
+        if not chunks:
+            raise IngestionError("No text chunks could be extracted from this document.")
         embedding_service = get_embedding_service()
         embeddings = await embedding_service.embed_batch([chunk.text for chunk in chunks])
+        if not embeddings or len(embeddings) != len(chunks):
+            raise IngestionError(
+                f"Embedding count mismatch: expected {len(chunks)}, received {len(embeddings)}."
+            )
         vector_store = VectorStore(
             persist_directory=str(settings.chroma_persist_dir),
             prefer_chroma=settings.vector_store == "chroma",

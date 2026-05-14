@@ -5,7 +5,7 @@ import json
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
-from app.config import settings
+from app.config import get_active_llm_model
 from app.database import get_connection
 from app.db.repositories.session_repo import SessionRepo
 from app.dependencies import get_llm_client, get_retrieval_engine
@@ -38,7 +38,7 @@ async def chat_completions(request: ChatCompletionRequest):
                 _openai_sse(
                     RagService(get_retrieval_engine(), get_llm_client()),
                     chat_request,
-                    request.model or settings.ollama_model,
+                    request.model or get_active_llm_model(),
                 ),
                 media_type="text/event-stream",
                 headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
@@ -48,11 +48,11 @@ async def chat_completions(request: ChatCompletionRequest):
         except (EmbeddingServiceUnavailableError, LLMUnavailableError) as exc:
             raise HTTPException(
                 status_code=503,
-                detail={"error": "ollama_unavailable", "message": str(exc)},
+                detail={"error": "provider_unavailable", "message": str(exc)},
             ) from exc
 
     return ChatCompletionResponse(
-        model=request.model or settings.ollama_model,
+        model=request.model or get_active_llm_model(),
         choices=[
             ChatCompletionChoice(
                 message=OpenAIMessage(role="assistant", content=response.answer),
@@ -86,5 +86,5 @@ async def _openai_sse(service: RagService, request: ChatRequest, model: str):
                 yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
                 yield "data: [DONE]\n\n"
     except (EmbeddingServiceUnavailableError, LLMUnavailableError) as exc:
-        payload = {"error": {"message": str(exc), "type": "ollama_error"}}
+        payload = {"error": {"message": str(exc), "type": "provider_error"}}
         yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"

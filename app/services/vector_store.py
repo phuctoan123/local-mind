@@ -30,6 +30,8 @@ class VectorStore:
     ):
         self.persist_directory = persist_directory
         self.collection_name = collection_name
+        self.configured_backend = "chroma" if prefer_chroma else "sqlite-vector"
+        self.init_error: str | None = None
         self._chroma_collection = None
         if prefer_chroma:
             self._try_init_chroma()
@@ -48,7 +50,8 @@ class VectorStore:
                 name=self.collection_name,
                 metadata={"hnsw:space": "cosine"},
             )
-        except Exception:
+        except Exception as exc:
+            self.init_error = f"{type(exc).__name__}: {exc}"
             self._chroma_collection = None
 
     def upsert(
@@ -170,8 +173,11 @@ class VectorStore:
             chunk_count = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0]
             doc_count = conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
         return {
-            "status": "ok",
+            "status": "degraded" if self.init_error else "ok",
             "backend": self.backend_name,
+            "configured_backend": self.configured_backend,
+            "collection": self.collection_name,
+            "message": self.init_error,
             "document_count": doc_count,
             "chunk_count": chunk_count,
         }
