@@ -208,8 +208,10 @@ def build_prompt(
             'in the provided documents."',
             "Do NOT use external knowledge.",
             "Cite sources by referencing the document name and page number.",
-            "Keep the answer concise.",
-            "Prefer 3 short bullet points or fewer unless the user asks for detail.",
+            "Give a complete answer with enough detail to be useful.",
+            "Use concise sections or bullets, but do not artificially shorten the answer.",
+            "When the question asks for comparison, reasoning, or synthesis, "
+            "explain the key evidence.",
         ]
     )
     return f"""<system>

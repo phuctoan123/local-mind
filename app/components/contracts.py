@@ -22,8 +22,8 @@ class LLMComponent(Protocol):
         stream: bool = False,
         temperature: float = 0.1,
         top_p: float = 0.9,
-        num_ctx: int = 2048,
-        num_predict: int = 256,
+        num_ctx: int = 4096,
+        num_predict: int = 1024,
     ) -> str | AsyncIterator[str]:
         """Generate a text response."""
 

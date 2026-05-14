@@ -22,10 +22,25 @@ npm run dev
 ## Tests
 
 ```bash
-pytest
+python -m pytest
 ```
 
-Ollama and ChromaDB are only required for full integration flows. The unit tests focus on pure logic that can run offline.
+Unit tests focus on pure logic that can run offline:
+
+```bash
+python -m pytest tests/unit
+```
+
+Integration tests exercise the FastAPI routes with a temporary SQLite database,
+temporary raw/vector storage, a SQLite vector fallback, and fake LLM/embedding
+providers. They do not require Ollama, Mistral, Google API keys, or ChromaDB:
+
+```bash
+python -m pytest tests/integration
+```
+
+Provider smoke scripts and manual end-to-end runs are still needed when changing
+real Ollama, Mistral, Google, or ChromaDB behavior.
 
 ## Hybrid Retrieval
 

@@ -1,359 +1,366 @@
-# LocalMind Context Checkpoint
+  # LocalMind - Project Context
 
-## Project Snapshot
+File nay la checkpoint context chinh cho project LocalMind. Dung no de tiep tuc ho tro
+du an trong cac thread sau ma khong can hoi lai tu dau.
 
-LocalMind is a document Q&A application using Retrieval-Augmented Generation (RAG).
-It supports uploading PDF, DOCX, and TXT files, parsing and chunking their content,
-embedding chunks, storing vectors, retrieving relevant context, and answering
-questions with source citations.
+## Muc Tieu Du An
 
-The project is structured as a FastAPI backend plus React/Vite frontend.
+LocalMind la ung dung hoi dap tai lieu rieng tu theo mo hinh Retrieval-Augmented
+Generation (RAG). Nguoi dung co the upload PDF, TXT, DOCX, de he thong parse noi
+dung, chunk van ban, tao embedding, luu vector, truy xuat ngu canh lien quan va tra
+loi cau hoi kem trich dan nguon.
 
-## High-Level Structure
+Huong san pham:
+
+- Chay tot o local/development, uu tien quyen rieng tu va kha nang dung model local.
+- Van co the doi sang provider hosted nhu Mistral hoac Google AI Studio qua `.env`.
+- UI tap trung vao workflow that: upload tai lieu, quan ly collection, chon tai lieu,
+  hoi dap streaming, debug retrieval, va research/report co citation.
+
+## Tech Stack / Framework
+
+Backend:
+
+- Python 3.11+.
+- FastAPI cho HTTP API va SSE streaming.
+- SQLite cho metadata, sessions, chunks, collections, migrations va vector fallback.
+- ChromaDB persistent client la vector store mac dinh khi kha dung.
+- Provider LLM/embedding co the thay doi:
+  - Ollama cho che do local.
+  - Mistral API.
+  - Google AI Studio / Gemini.
+- Pytest cho unit tests.
+- Ruff config trong `pyproject.toml`, line length 100, target Python 3.11.
+
+Frontend:
+
+- React 18.
+- TypeScript.
+- Vite 4.
+- `lucide-react` cho icons.
+- `react-markdown` cho render cau tra loi assistant.
+
+Scripts/dev:
+
+- `python scripts/init_db.py` khoi tao DB va chay migrations.
+- `python scripts/migrate_db.py` chay migration runner truc tiep.
+- `python -m pytest` chay backend tests.
+- `npm run build` trong `ui/` build frontend.
+
+## Cau Truc Repo Chinh
 
 ```text
 app/
-  main.py                     FastAPI app setup, CORS, middleware, routers
-  config.py                   .env loading, provider settings, active model helpers
-  database.py                 SQLite connection helpers + migration runner
-  dependencies.py             Provider factories for LLM, embedding, vector store
+  main.py                       FastAPI app setup, CORS, middleware, routers
+  config.py                     Settings tu .env, provider config, helper model active
+  database.py                   SQLite connection, schema, migration runner
+  dependencies.py               Factory cho vector store, embedding, LLM, retrieval engine
 
   api/
-    collections.py           Create/list/delete collections, assign documents
-    documents.py              Upload/list/get/delete documents, preview chunks
-    chat.py                   Chat API, streaming SSE chat, sessions
-    retrieval.py              Retrieval-only endpoint /api/v1/chunks
-    openai_compat.py          Basic /v1/chat/completions endpoint
-    research.py             Multi-step research/report endpoint
-    health.py                 Health check for SQLite, vector store, providers
-
-  ingestion/
-    worker.py                 Document ingestion pipeline
-    chunker.py                Recursive chunking with overlap
-    parsers/                  PDF, DOCX, TXT parsers
-
-  services/
-    retrieval_engine.py       Hybrid/vector retrieval orchestration
-    lexical_search.py         BM25 keyword search over SQLite chunks
-    hybrid_retriever.py       Reciprocal Rank Fusion (RRF)
-    vector_store.py           ChromaDB vector store + SQLite vector fallback
-    rag_service.py            Builds prompt, runs retrieval + LLM generation
-    research_service.py       Plans retrieval steps and synthesizes cited reports
-    llm_client.py             Ollama chat client
-    embedding_service.py      Ollama embedding client
-    mistral_llm_client.py     Mistral/LeChat chat client
-    mistral_embedding_service.py
-    google_llm_client.py      Google AI Studio Gemini chat client
-    google_embedding_service.py
+    chat.py                     Chat API, streaming SSE, sessions
+    collections.py              Collection CRUD va gan document vao collection
+    documents.py                Upload/list/get/delete documents, preview chunks
+    health.py                   Health check SQLite, migrations, vector store, providers
+    openai_compat.py            Basic /v1/chat/completions compatibility
+    research.py                 Multi-step research/report endpoint
+    retrieval.py                Retrieval-only va retrieval debug endpoints
 
   db/repositories/
-    collection_repo.py        Collection CRUD, document assignment, ready doc IDs
+    chunk_repo.py               CRUD/query chunks
+    collection_repo.py          Collection CRUD, membership, ready document IDs
+    document_repo.py            Document metadata CRUD
+    session_repo.py             Chat session/history CRUD
+
+  ingestion/
+    worker.py                   Pipeline ingestion background
+    chunker.py                  Recursive chunker with overlap
+    parsers/                    PDF, DOCX, TXT parsers
+
+  models/
+    chat.py                     Chat/session request-response models
+    collection.py               Collection models
+    document.py                 Document models
+    health.py                   Health models
+    openai.py                   OpenAI-compatible models
+    research.py                 Research models
+    retrieval.py                Retrieval/chunk/debug models
+
+  services/
+    citation_validator.py       Lightweight answer/source citation validation
+    embedding_service.py        Ollama embedding client
+    google_embedding_service.py Google embedding client
+    google_llm_client.py        Google/Gemini chat client
+    hybrid_retriever.py         Reciprocal Rank Fusion
+    lexical_search.py           BM25 keyword retrieval over SQLite chunks
+    llm_client.py               Ollama chat client
+    mistral_embedding_service.py
+    mistral_llm_client.py
+    query_rewriter.py           Deterministic retrieval query cleanup
+    rag_service.py              Retrieval + prompt + LLM answer flow
+    reranker.py                 Local lexical reranker
+    research_service.py         Multi-step research planning and synthesis
+    retrieval_engine.py         Hybrid/vector retrieval orchestration
+    vector_store.py             ChromaDB store plus SQLite vector fallback
 
 ui/src/
-  App.tsx                     Main layout and selected document state
-  api/client.ts               REST/SSE client
-  hooks/useChat.ts            Streaming chat state
-  hooks/useCollections.ts     Collection list/create/delete/assignment state
-  hooks/useDocuments.ts       Document list/upload/delete state
-  components/                 Chat, collections, document list, upload, citations, badges
+  App.tsx                       Main UI layout, selected document state
+  api/client.ts                 REST/SSE API client
+  hooks/useChat.ts              Streaming chat state
+  hooks/useCollections.ts       Collections state/actions
+  hooks/useDocuments.ts         Documents/upload/delete state
+  components/                   Chat, upload, documents, collections, research/debug panels
+
+docs/
+  api.md
+  architecture.md
+  development.md
+
+scripts/
+  check_google_ai.py
+  check_mistral.py
+  check_ollama.py
+  init_db.py
+  migrate_db.py
+  view_data.py
+
+tests/unit/
+  Unit tests cho chunker, prompt builder, vector store, retrieval, reranker,
+  query rewriter, citation validator, collections, research service, migrations.
+
+data/
+  raw/.gitkeep
+  sqlite/.gitkeep
+  chroma/.gitkeep
 ```
 
-## Current Provider Logic
-
-Provider switching is controlled by `.env`.
-
-Important config values:
-
-```env
-LLM_PROVIDER=mistral|google|ollama
-EMBEDDING_PROVIDER=mistral|google|ollama
-CHROMA_COLLECTION=documents_mistral
-RETRIEVAL_MODE=hybrid
-```
-
-Important helpers in `app/config.py`:
-
-- `get_active_llm_model()`
-- `get_active_embedding_model()`
-- `ensure_data_dirs()`
-
-Important factory functions in `app/dependencies.py`:
-
-- `get_vector_store()`
-- `get_embedding_service()`
-- `get_llm_client()`
-- `get_retrieval_engine()`
-
-These choose Mistral, Google, or Ollama implementations based on `.env`.
-
-## Database Migrations
-
-`app/database.py` now owns a small SQLite migration runner.
-
-Important objects:
-
-- `MIGRATIONS`
-- `run_migrations(conn)`
-- `migration_status(conn)`
-- `init_db(path=None)`
-
-Applied versions are tracked in `schema_migrations`. App startup still calls
-`init_db()`, so migrations run before API routes are served. `scripts/migrate_db.py`
-can be used to run migrations explicitly, and `/api/v1/health` reports migration
-status under the SQLite component.
-
-## Current RAG Flow
-
-### Upload
-
-Endpoint: `POST /api/v1/upload`
-
-Implemented in `app/api/documents.py`.
-
-Flow:
-
-1. Validate file extension and size.
-2. Save raw file under `data/raw`.
-3. Create SQLite document row with status `PENDING`.
-4. Start background ingestion task.
-
-### Ingestion
-
-Function: `process_document(document_id)` in `app/ingestion/worker.py`.
-
-Flow:
-
-1. Load document metadata.
-2. Set status `PROCESSING`.
-3. Parse document through MIME-specific parser.
-4. Validate that text was extracted.
-5. Chunk parsed pages using `RecursiveChunker`.
-6. Validate at least one chunk exists.
-7. Embed chunks using active embedding provider.
-8. Validate embedding count matches chunk count.
-9. Upsert vectors into `VectorStore`.
-10. Save chunks into SQLite.
-11. Set status `READY`.
-12. On failure, set status `FAILED` with `error_message`.
-
-Important guard:
-
-- Empty parse/chunk/embedding no longer marks document `READY`.
-
-### Retrieval
-
-Function: `RetrievalEngine.retrieve(...)` in `app/services/retrieval_engine.py`.
-
-Current mode: Hybrid RAG.
-
-Flow:
-
-1. Embed query with active embedding provider.
-2. If `RETRIEVAL_MODE=hybrid`:
-   - vector search top `VECTOR_TOP_K`
-   - BM25 search top `BM25_TOP_K`
-   - merge with Reciprocal Rank Fusion using `RRF_K`
-   - return final `top_k`
-3. If vector/BM25 returns nothing, fallback to simple keyword retrieval.
-
-Important files:
-
-- `app/services/lexical_search.py`
-  - `BM25Search.search(...)`
-  - `tokenize(...)`
-- `app/services/hybrid_retriever.py`
-  - `reciprocal_rank_fusion(...)`
-- `app/services/query_rewriter.py`
-  - deterministic retrieval-facing query cleanup
-- `app/services/reranker.py`
-  - local lexical reranker over fused candidates
-- `app/services/vector_store.py`
-  - `VectorStore.query(...)`
-  - `VectorStore.upsert(...)`
-  - `VectorStore.health(...)`
-
-Debug endpoint:
-
-- `POST /api/v1/chunks/debug`
-  - returns vector, BM25, fused, reranked, fallback, and final chunks
-
-### Generation
-
-Class: `RagService` in `app/services/rag_service.py`.
-
-Important methods:
-
-- `chat(request)`
-- `stream_chat_events(request)`
-- `build_prompt(...)`
-
-Flow:
-
-1. Retrieve chunks.
-2. Build source citations.
-3. Load session history if `session_id` exists.
-4. Build prompt with context/history/question.
-5. Call active LLM provider.
-6. Validate answer citations against retrieved context.
-7. Return answer + sources + citation validation + latency.
-
-Streaming emits SSE-style events:
-
-```text
-sources
-token
-citation_validation
-done
-error
-```
-
-Streaming chat now preserves session history by opening DB connection inside
-the streaming generator in `app/api/chat.py`.
-
-## Vector Store Logic
-
-Class: `VectorStore` in `app/services/vector_store.py`.
-
-Primary backend:
-
-- ChromaDB persistent client
-
-Fallback:
-
-- SQLite table `vectors`
-
-Important behavior:
-
-- Chroma init failure is no longer silent.
-- `VectorStore.health()` reports:
-  - `status`: `ok` or `degraded`
-  - `backend`: actual backend
-  - `configured_backend`
-  - `collection`
-  - `message`: init error if any
-
-## Frontend Logic
-
-### Document Selection
-
-Implemented in:
-
-- `ui/src/App.tsx`
-- `ui/src/components/DocumentList.tsx`
-
-Behavior:
-
-- Only `READY` documents can be selected.
-- User can select individual documents or use `All/Clear`.
-- If no document is selected, chat searches all ready documents.
-- Selected IDs are passed to `chat.ask(query, selectedReadyDocumentIds)`.
-
-### Streaming Chat
-
-Implemented in:
-
-- `ui/src/api/client.ts`
-  - `streamChat(...)`
-- `ui/src/hooks/useChat.ts`
-- `ui/src/components/ChatWindow.tsx`
-
-Behavior:
-
-- Adds user message and placeholder assistant message.
-- Consumes SSE events.
-- `sources` updates citations.
-- `token` appends streamed text.
-- `done` stores latency.
-- `error` shows message.
-
-### Answer Rendering
-
-Assistant messages use `react-markdown`.
-Source citations are expandable blocks showing filename, page, score, and preview.
-
-## Important API Endpoints
-
-```text
-GET    /api/v1/collections
-POST   /api/v1/collections
-DELETE /api/v1/collections/{collection_id}
-PUT    /api/v1/collections/{collection_id}/documents/{document_id}
-DELETE /api/v1/collections/{collection_id}/documents/{document_id}
-GET    /api/v1/collections/{collection_id}/ready-documents
-POST   /api/v1/upload
-GET    /api/v1/documents
-GET    /api/v1/documents/{document_id}
-GET    /api/v1/documents/{document_id}/chunks
-DELETE /api/v1/documents/{document_id}
-POST   /api/v1/chunks
-POST   /api/v1/chunks/debug
-POST   /api/v1/chat
-POST   /api/v1/research
-POST   /api/v1/sessions
-DELETE /api/v1/sessions/{session_id}
-GET    /api/v1/health
-POST   /v1/chat/completions
-```
-
-## Recent Review Fixes Already Implemented
-
-1. Streaming chat now preserves `session_id` and session history.
-2. Ingestion no longer marks empty/failed parsing as `READY`.
-3. Chroma fallback is visible through health status.
-4. OpenAI-compatible endpoint no longer hard-codes Ollama metadata/errors.
-5. Hybrid retrieval added: BM25 + vector search + RRF.
-6. UI now supports selecting documents before chat.
-7. Phase 1 retrieval quality started:
-   - deterministic query rewriting
-   - local lexical reranking
-   - retrieval debug endpoint/UI panel
-   - lightweight citation validation after generation
-8. Phase 3 research assistant started:
-   - `POST /api/v1/research`
-   - deterministic multi-step query planning
-   - evidence synthesis with citation validation
-   - frontend Research assistant panel
-9. Phase 2 document workspace started:
-   - collections schema and API
-   - document collection membership on document responses
-   - frontend Collections panel
-   - add/remove documents from the active collection
-   - "Use ready documents" action to select collection docs for chat/research
-10. Phase 4.1 database migration layer started:
-   - `schema_migrations` table
-   - versioned built-in SQLite migrations
-   - `scripts/migrate_db.py`
-   - health endpoint reports migration status
-
-## Known Remaining Gaps
-
-- Upload validation still mainly checks extension, not file signature/magic bytes.
-- Reranker/query rewriting/citation validation are lightweight deterministic implementations,
-  not LLM or cross-encoder quality yet.
-- Migration runner is built in, but there is no Alembic integration yet.
-- Test coverage is still mostly unit-level, not full integration.
-- Frontend build could not be verified in sandbox because Node hits Windows permission errors.
-- `scripts/view_data.py` exists as untracked local file and was not touched.
-
-## Verification Commands Used
-
-```powershell
-python -m compileall app scripts tests
-python -m pytest tests/unit -p no:cacheprovider
-```
-
-Current backend unit status during last check:
-
-```text
-20 passed
-```
-
-## Git/Security Notes
-
-- `.env` is ignored and must not be committed.
-- `.env.example` is safe and contains placeholders only.
-- Runtime data is ignored:
+## Nhung Gi Da Hoan Thanh
+
+Core RAG:
+
+- Upload document qua `POST /api/v1/upload`.
+- Upload validation da kiem tra extension, size va file signature/magic bytes cho
+  PDF/DOCX/TXT truoc khi ghi file xuong disk.
+- Parse PDF/TXT/DOCX.
+- Recursive chunking voi overlap.
+- Embedding chunks qua provider active.
+- Luu metadata/chunks trong SQLite.
+- Luu vectors trong ChromaDB, fallback SQLite neu Chroma bi loi.
+- Retrieval context va chat voi source citations.
+- Streaming chat qua SSE.
+
+Provider switching:
+
+- Ho tro Ollama, Mistral, Google cho LLM.
+- Ho tro Ollama, Mistral, Google cho embedding.
+- `.env.example` co cac config mau.
+- `app/config.py` co `get_active_llm_model()` va `get_active_embedding_model()`.
+- `app/dependencies.py` chon implementation theo `LLM_PROVIDER` va `EMBEDDING_PROVIDER`.
+
+Retrieval quality:
+
+- Hybrid retrieval mac dinh: vector search + BM25 + Reciprocal Rank Fusion.
+- Deterministic query rewriting.
+- Local lexical reranking.
+- Fallback keyword retrieval khi vector/BM25 khong co ket qua.
+- Endpoint debug: `POST /api/v1/chunks/debug`.
+- UI debug panel cho retrieval stages.
+
+Citation/research:
+
+- Lightweight citation validation sau generation.
+- Research endpoint: `POST /api/v1/research`.
+- Research service tao nhieu retrieval steps, tong hop cau tra loi/report, tra ve sources
+  va citation validation.
+- UI Research assistant panel.
+
+Collections/workspace:
+
+- Schema va API collections.
+- Gan/bo document khoi collection.
+- Document response co `collection_ids`.
+- UI Collections panel.
+- Action "Use ready documents" de chon tat ca document ready trong collection cho chat,
+  retrieval debug hoac research.
+
+Database/migrations:
+
+- Built-in SQLite migration runner trong `app/database.py`.
+- Bang `schema_migrations`.
+- App startup goi `init_db()` de chay migrations truoc khi serve API.
+- `scripts/migrate_db.py`.
+- `/api/v1/health` report migration status.
+
+Review fixes da xu ly:
+
+- Streaming chat giu dung `session_id` va session history.
+- Ingestion khong danh dau `READY` neu parse/chunk/embedding rong hoac fail.
+- Chroma fallback khong con silent; health endpoint bao `ok/degraded`, backend va error.
+- OpenAI-compatible endpoint khong hard-code Ollama metadata/errors.
+- UI cho phep chon document truoc khi chat; neu khong chon thi search tat ca ready docs.
+
+Git/trang thai gan nhat:
+
+- Branch: `main`.
+- Remote: `origin` -> `https://github.com/phuctoan123/local-mind.git`.
+- Commit da push gan nhat: `06ffdc9 Add hybrid retrieval and research workflows`.
+- Sau lan push gan nhat, repo sach va `main` dong bo voi `origin/main`.
+
+Verification gan nhat:
+
+- `python -m pytest`: 43 passed sau khi them integration tests.
+- `python -m pytest tests/integration`: 15 passed.
+- `npm run build` trong `ui/`: pass sau khi chay ngoai sandbox do Node bi EPERM trong
+  sandbox khi `lstat C:\Users\Toan`.
+- `git diff --check`: khong co whitespace error; co warning LF se duoc Windows doi sang
+  CRLF khi Git cham file.
+
+## Nhung Issue / Bug / Task Dang Lam
+
+Backlog/known gaps:
+
+- Upload validation da co signature check co ban; van co the can hardening nang cao hon
+  neu deploy public, vi TXT detection va DOCX structural checks chi o muc pragmatic.
+- Query rewriting, reranker va citation validation dang la deterministic lightweight;
+  co the nang cap bang LLM/cross-encoder neu can chat luong cao hon.
+- Migration runner da co, nhung chua dung Alembic.
+- Da co integration/API tests dau tien cho upload, ingestion, retrieval, chat streaming,
+  research, collections va health; van can them frontend tests/manual browser QA.
+- Can QA frontend bang browser cho cac UI moi: Collections, Retrieval Debug, Research,
+  citation validation badge, document selection.
+- Can review `scripts/view_data.py` neu muon giu nhu tool chinh thuc hay tach ra dev-only.
+- Chua co auth phuc tap; middleware/API key config co trong project nhung can review neu
+  deploy that.
+
+Task uu tien tiep theo duoc suy luan:
+
+- QA UI bang browser local.
+- Cai thien citation quality va UI display cho research/chat.
+- Lam ro migration strategy dai han neu schema tiep tuc phinh ra.
+
+## File Hoac Module Quan Trong
+
+- `app/config.py`: tat ca setting va env defaults.
+- `app/dependencies.py`: factory layer; dung de them/sua provider ma khong rải logic
+  provider trong routers.
+- `app/database.py`: SQLite schema, migration runner, init DB.
+- `app/main.py`: dang ky router va startup behavior.
+- `app/ingestion/worker.py`: pipeline ingestion, validation trang thai document.
+- `app/services/retrieval_engine.py`: orchestration retrieval chinh.
+- `app/services/vector_store.py`: ChromaDB + SQLite vector fallback.
+- `app/services/rag_service.py`: chat flow, prompt building, streaming, citation validation.
+- `app/services/research_service.py`: research planning va synthesis.
+- `app/services/lexical_search.py`: BM25 keyword search.
+- `app/services/hybrid_retriever.py`: RRF merge.
+- `app/services/reranker.py`: lexical reranker.
+- `app/services/citation_validator.py`: answer/source validation.
+- `app/api/*.py`: HTTP behavior va response contracts.
+- `app/db/repositories/*.py`: DB access boundaries.
+- `ui/src/api/client.ts`: frontend API/SSE contract.
+- `ui/src/App.tsx`: global UI state, selected documents, panel composition.
+- `ui/src/hooks/useChat.ts`: streaming chat state.
+- `ui/src/hooks/useCollections.ts`: collection state/actions.
+- `ui/src/components/DocumentList.tsx`: document selection va collection assignment entry.
+- `ui/src/components/CollectionPanel.tsx`: collection workflow.
+- `ui/src/components/ResearchPanel.tsx`: research workflow.
+- `ui/src/components/RetrievalDebugPanel.tsx`: retrieval debug workflow.
+- `.env.example`: documented configuration surface.
+- `README.md`: setup va API overview.
+
+## Coding Style / Convention Can Giu
+
+Python/backend:
+
+- Uu tien type hints va code ro rang.
+- Config di qua `Settings` trong `app/config.py`.
+- Provider-specific logic nam trong service/client rieng va factory trong `dependencies.py`.
+- Routers trong `app/api/` nen mong, goi repositories/services thay vi nhồi business logic.
+- DB access nen di qua repositories khi co boundary ro.
+- Migration thay doi schema nen them vao `MIGRATIONS` trong `app/database.py`.
+- Khong silent fallback cho loi quan trong; health endpoint nen expose trang thai degraded.
+- Tests nen dat trong `tests/unit/`, dat ten theo module/behavior.
+- Ruff line length 100; imports nen giu gon va sap xep sach.
+
+Frontend:
+
+- React function components + hooks.
+- TypeScript types trong `ui/src/api/client.ts` can dong bo voi backend response models.
+- API calls nen tap trung trong client/hook, component giu logic UI.
+- Dung lucide icons khi can icon.
+- Giu UI thuc dung, scan duoc, tranh refactor style lon neu khong lien quan.
+- Khi them workflow moi, can xu ly loading/error/empty state.
+
+Git/repo:
+
+- Khong commit `.env`, runtime data, `.venv`, `node_modules`, cache.
+- `.env.example` chi de placeholder/safe defaults.
+- Giu commit scope ro theo feature/fix.
+- Neu workspace dirty, khong revert thay doi khong do minh tao tru khi duoc yeu cau.
+
+## Cac Quyet Dinh Ky Thuat Truoc Do
+
+- Mac dinh retrieval la `hybrid`, khong chi vector-only.
+- Hybrid = vector search + BM25 + Reciprocal Rank Fusion, sau do co the rerank.
+- Query rewriting hien deterministic de tranh phu thuoc them vao LLM.
+- Citation validation hien lightweight de nhanh, local va de test.
+- Research mode dung deterministic step planning roi goi LLM active de synthesize.
+- ChromaDB la primary vector backend, SQLite vector table la fallback development-friendly.
+- Chroma failure phai hien trong health status, khong duoc che loi.
+- Startup FastAPI tu dong chay `init_db()` va migrations.
+- UI selected documents la filter chinh cho chat/retrieval/research; neu khong chon thi
+  dung tat ca ready documents.
+- Collections la nhom workspace lightweight, khong phai permission/security boundary.
+- OpenAI-compatible endpoint la basic compatibility endpoint, khong phai full API clone.
+
+## Constraint / Requirement Dac Biet
+
+- Project uu tien privacy/local-first; API keys chi nam trong `.env` hoac secrets.
+- `.env` bi ignore va khong duoc commit.
+- Runtime folders bi ignore:
   - `data/raw`
   - `data/sqlite`
   - `data/chroma`
-- `node_modules`, `.venv`, `__pycache__`, and test cache are ignored.
+- Build/test tren Windows co the gap sandbox permission issue, dac biet Node `EPERM`
+  voi path user; khi can, chay command ngoai sandbox voi approval.
+- `rg.exe` tung bi `Access is denied` trong workspace nay; neu can search thi fallback
+  sang PowerShell/Git commands.
+- Node frontend dung Vite 4, yeu cau Node 16.20+.
+- Sau khi doi embedding provider/model, can re-upload documents de vectors dung embedding moi.
+- Neu them field API, can cap nhat ca backend Pydantic models va frontend TS types.
+
+## TODO Tiep Theo
+
+1. Mo rong integration tests khi workflow moi thay doi:
+   - delete document cleanup vectors/chunks/files
+   - OpenAI-compatible endpoint
+   - API key middleware
+   - ingestion failure paths cho PDF/DOCX parser errors
+2. QA frontend bang browser local:
+   - document selection
+   - collection create/delete/add/remove/use ready docs
+   - retrieval debug stages
+   - research panel loading/error/result
+   - citation validation badge
+3. Cai thien citation validator:
+   - detect citation format tot hon
+   - map claim -> source chunks neu can
+   - hien warning ro hon trong UI
+4. Cai thien upload validation neu deploy public:
+   - gioi han ZIP bomb/qua nhieu entries cho DOCX
+   - reject file rong neu can
+   - them integration tests cho upload gia mao
+5. Cai thien reranking/query rewriting neu can chat luong:
+   - optional provider-based rewrite
+   - optional cross-encoder/local model reranker
+   - benchmark retrieval precision voi test fixtures
+6. Review schema migration runner:
+   - them tests cho downgrade/duplicate migration behavior neu can
+   - can nhac Alembic neu schema phuc tap hon
+7. Review security/deployment:
+   - API key middleware behavior
+   - CORS defaults
+   - upload size/file type hardening
+8. Cap nhat docs khi them feature moi:
+   - `README.md`
+   - `docs/api.md`
+   - `docs/architecture.md`
+   - `docs/development.md`

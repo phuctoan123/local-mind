@@ -129,7 +129,7 @@ def build_research_prompt(
 You are a careful research assistant for a document workspace.
 Use ONLY the provided evidence.
 If evidence is insufficient, say what is missing.
-Write a concise research answer with:
+Write a thorough but focused research answer with:
 - Answer
 - Evidence
 - Gaps or caveats

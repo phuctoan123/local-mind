@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import mimetypes
 import re
+import zipfile
+from dataclasses import dataclass
+from io import BytesIO
 from pathlib import Path
-
 
 MIME_BY_EXTENSION = {
     ".pdf": "application/pdf",
@@ -29,3 +31,98 @@ def detect_mime_type(filename: str) -> str:
 def extension_allowed(filename: str, allowed: tuple[str, ...]) -> bool:
     suffix = Path(filename).suffix.lower().lstrip(".")
     return suffix in allowed
+
+
+@dataclass(frozen=True)
+class FileSignatureValidation:
+    is_valid: bool
+    error: str = ""
+    message: str = ""
+
+
+def validate_file_signature(filename: str, contents: bytes) -> FileSignatureValidation:
+    suffix = Path(filename).suffix.lower()
+    if suffix == ".pdf":
+        return _validate_pdf(contents)
+    if suffix == ".docx":
+        return _validate_docx(contents)
+    if suffix == ".txt":
+        return _validate_txt(contents)
+    return FileSignatureValidation(
+        is_valid=False,
+        error="unsupported_format",
+        message=f"File type is not supported: {filename}",
+    )
+
+
+def _validate_pdf(contents: bytes) -> FileSignatureValidation:
+    if contents[:1024].lstrip().startswith(b"%PDF-"):
+        return FileSignatureValidation(is_valid=True)
+    return FileSignatureValidation(
+        is_valid=False,
+        error="invalid_file_signature",
+        message="Uploaded PDF does not contain a valid PDF header.",
+    )
+
+
+def _validate_docx(contents: bytes) -> FileSignatureValidation:
+    try:
+        with zipfile.ZipFile(BytesIO(contents)) as archive:
+            names = set(archive.namelist())
+    except zipfile.BadZipFile:
+        return FileSignatureValidation(
+            is_valid=False,
+            error="invalid_file_signature",
+            message="Uploaded DOCX is not a valid Office document archive.",
+        )
+
+    required_entries = {"[Content_Types].xml", "word/document.xml"}
+    if required_entries.issubset(names):
+        return FileSignatureValidation(is_valid=True)
+    return FileSignatureValidation(
+        is_valid=False,
+        error="invalid_file_signature",
+        message="Uploaded DOCX is missing required Word document entries.",
+    )
+
+
+def _validate_txt(contents: bytes) -> FileSignatureValidation:
+    if b"\x00" in contents:
+        return FileSignatureValidation(
+            is_valid=False,
+            error="invalid_file_signature",
+            message="Uploaded TXT appears to be binary data.",
+        )
+
+    try:
+        contents.decode("utf-8")
+    except UnicodeDecodeError:
+        try:
+            import chardet
+
+            detected = chardet.detect(contents)
+            encoding = detected.get("encoding")
+            confidence = float(detected.get("confidence") or 0)
+            if not encoding or confidence < 0.6:
+                raise UnicodeDecodeError("unknown", contents, 0, 1, "low confidence")
+            contents.decode(encoding)
+        except (ImportError, LookupError, UnicodeDecodeError):
+            return FileSignatureValidation(
+                is_valid=False,
+                error="invalid_file_signature",
+                message="Uploaded TXT could not be decoded as text.",
+            )
+
+    sample = contents[:4096]
+    if not sample:
+        return FileSignatureValidation(is_valid=True)
+
+    allowed_controls = {9, 10, 12, 13}
+    control_count = sum(byte < 32 and byte not in allowed_controls for byte in sample)
+    if control_count / len(sample) > 0.05:
+        return FileSignatureValidation(
+            is_valid=False,
+            error="invalid_file_signature",
+            message="Uploaded TXT appears to contain too much binary control data.",
+        )
+    return FileSignatureValidation(is_valid=True)

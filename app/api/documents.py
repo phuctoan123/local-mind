@@ -20,13 +20,19 @@ from app.models.document import (
     DocumentResponse,
     UploadResponse,
 )
-from app.utils.file_utils import detect_mime_type, extension_allowed, secure_filename
+from app.utils.file_utils import (
+    detect_mime_type,
+    extension_allowed,
+    secure_filename,
+    validate_file_signature,
+)
 
 router = APIRouter(tags=["documents"])
+UPLOAD_FILE = File(...)
 
 
 @router.post("/upload", response_model=UploadResponse)
-async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = UPLOAD_FILE):
     original_name = file.filename or "document"
     if not extension_allowed(original_name, settings.allowed_extensions):
         raise HTTPException(
@@ -48,6 +54,17 @@ async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = 
                 "message": f"File exceeds maximum allowed size of {settings.max_upload_size_mb} MB",
                 "max_bytes": max_bytes,
                 "received_bytes": len(contents),
+            },
+        )
+
+    signature = validate_file_signature(original_name, contents)
+    if not signature.is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "error": signature.error,
+                "message": signature.message,
+                "allowed_types": list(settings.allowed_extensions),
             },
         )
 
@@ -119,7 +136,10 @@ def get_document_chunks(document_id: str, limit: int = Query(default=5, ge=1, le
         if not document:
             raise HTTPException(
                 status_code=404,
-                detail={"error": "not_found", "message": f"Document '{document_id}' does not exist"},
+                detail={
+                    "error": "not_found",
+                    "message": f"Document '{document_id}' does not exist",
+                },
             )
         chunks = ChunkRepo(conn).list_by_document(document_id)[:limit]
     return DocumentChunksResponse(
@@ -143,7 +163,10 @@ def delete_document(document_id: str):
         if not document:
             raise HTTPException(
                 status_code=404,
-                detail={"error": "not_found", "message": f"Document '{document_id}' does not exist"},
+                detail={
+                    "error": "not_found",
+                    "message": f"Document '{document_id}' does not exist",
+                },
             )
         if document["status"] == "PROCESSING":
             raise HTTPException(
