@@ -207,8 +207,8 @@ Git/trang thai gan nhat:
 
 Verification gan nhat:
 
-- `python -m pytest`: 43 passed sau khi them integration tests.
-- `python -m pytest tests/integration`: 15 passed.
+- `python -m pytest`: 56 passed sau khi them security/deployment hardening tests.
+- `python -m pytest tests/integration`: 23 passed.
 - `npm run build` trong `ui/`: pass sau khi chay ngoai sandbox do Node bi EPERM trong
   sandbox khi `lstat C:\Users\Toan`.
 - `git diff --check`: khong co whitespace error; co warning LF se duoc Windows doi sang
@@ -223,13 +223,14 @@ Backlog/known gaps:
 - Query rewriting, reranker va citation validation dang la deterministic lightweight;
   co the nang cap bang LLM/cross-encoder neu can chat luong cao hon.
 - Migration runner da co, nhung chua dung Alembic.
-- Da co integration/API tests dau tien cho upload, ingestion, retrieval, chat streaming,
-  research, collections va health; van can them frontend tests/manual browser QA.
+- Da co integration/API tests cho upload, ingestion, retrieval, chat streaming, research,
+  collections, health, delete cleanup, API key/CORS va request ID; van can them frontend
+  tests/manual browser QA.
 - Can QA frontend bang browser cho cac UI moi: Collections, Retrieval Debug, Research,
   citation validation badge, document selection.
 - Can review `scripts/view_data.py` neu muon giu nhu tool chinh thuc hay tach ra dev-only.
-- Chua co auth phuc tap; middleware/API key config co trong project nhung can review neu
-  deploy that.
+- API key middleware da duoc QA cho `/api/`; `/v1` OpenAI-compatible route chua duoc
+  middleware bao ve va can reverse proxy auth neu expose ra network.
 
 Task uu tien tiep theo duoc suy luan:
 
@@ -330,7 +331,6 @@ Git/repo:
 ## TODO Tiep Theo
 
 1. Mo rong integration tests khi workflow moi thay doi:
-   - delete document cleanup vectors/chunks/files
    - OpenAI-compatible endpoint
    - API key middleware
    - ingestion failure paths cho PDF/DOCX parser errors
@@ -345,7 +345,6 @@ Git/repo:
    - map claim -> source chunks neu can
    - hien warning ro hon trong UI
 4. Cai thien upload validation neu deploy public:
-   - gioi han ZIP bomb/qua nhieu entries cho DOCX
    - reject file rong neu can
    - them integration tests cho upload gia mao
 5. Cai thien reranking/query rewriting neu can chat luong:

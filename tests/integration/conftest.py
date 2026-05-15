@@ -153,6 +153,10 @@ def integration():
         "enable_citation_validation": settings.enable_citation_validation,
         "min_similarity_score": settings.min_similarity_score,
         "max_upload_size_mb": settings.max_upload_size_mb,
+        "max_docx_zip_entries": settings.max_docx_zip_entries,
+        "max_docx_uncompressed_mb": settings.max_docx_uncompressed_mb,
+        "max_docx_compression_ratio": settings.max_docx_compression_ratio,
+        "cors_origins": settings.cors_origins,
         "api_key": settings.api_key,
     }
     test_root = Path(__file__).resolve().parents[2] / ".pytest_tmp" / uuid.uuid4().hex
@@ -180,6 +184,10 @@ def integration():
         "enable_citation_validation": True,
         "min_similarity_score": 0.0,
         "max_upload_size_mb": 1,
+        "max_docx_zip_entries": 500,
+        "max_docx_uncompressed_mb": 100,
+        "max_docx_compression_ratio": 100,
+        "cors_origins": ("http://localhost:3000",),
         "api_key": "",
     }
     for name, value in overrides.items():

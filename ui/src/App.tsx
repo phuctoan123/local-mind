@@ -58,6 +58,8 @@ export default function App() {
           onActiveChange={setActiveCollectionId}
           onCreate={collections.create}
           onDelete={async (collectionId) => {
+            const collection = collections.collections.find((item) => item.id === collectionId);
+            if (!window.confirm(`Delete collection "${collection?.name || collectionId}"?`)) return;
             await collections.remove(collectionId);
             if (activeCollectionId === collectionId) {
               setActiveCollectionId(null);
@@ -74,7 +76,12 @@ export default function App() {
           activeCollection={activeCollection}
           onSelectionChange={setSelectedDocumentIds}
           onRefresh={docs.refresh}
-          onDelete={docs.remove}
+          onDelete={async (documentId) => {
+            const document = docs.documents.find((item) => item.id === documentId);
+            const label = document?.original_name || documentId;
+            if (!window.confirm(`Delete document "${label}"? This cannot be undone.`)) return;
+            await docs.remove(documentId);
+          }}
           onAddToCollection={handleAddToCollection}
           onRemoveFromCollection={handleRemoveFromCollection}
         />

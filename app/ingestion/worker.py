@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
 from app.config import settings
 from app.database import get_connection
 from app.db.repositories.chunk_repo import ChunkRepo
@@ -12,6 +15,9 @@ from app.services.vector_store import VectorStore
 
 class IngestionError(RuntimeError):
     pass
+
+
+PATH_PATTERN = re.compile(r"([A-Za-z]:\\[^\s'\"<>]+|/[^\s'\"<>]+)")
 
 
 async def process_document(document_id: str) -> None:
@@ -57,4 +63,16 @@ async def process_document(document_id: str) -> None:
             DocumentRepo(conn).update_status(document_id, "READY", chunk_count=len(chunks))
     except Exception as exc:
         with get_connection() as conn:
-            DocumentRepo(conn).update_status(document_id, "FAILED", error_message=str(exc))
+            DocumentRepo(conn).update_status(
+                document_id,
+                "FAILED",
+                error_message=safe_ingestion_error(exc),
+            )
+
+
+def safe_ingestion_error(exc: Exception) -> str:
+    if isinstance(exc, IngestionError):
+        return str(exc)
+    message = str(exc).strip() or type(exc).__name__
+    message = PATH_PATTERN.sub(lambda match: Path(match.group(0)).name or "[path]", message)
+    return message[:300]

@@ -7,6 +7,7 @@ from app.api import chat, collections, documents, health, openai_compat, researc
 from app.config import ensure_data_dirs, settings
 from app.database import init_db
 from app.middleware.auth import ApiKeyMiddleware
+from app.middleware.request_logging import RequestLoggingMiddleware
 
 
 def create_app() -> FastAPI:
@@ -25,6 +26,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.add_middleware(ApiKeyMiddleware)
+    app.add_middleware(RequestLoggingMiddleware)
     app.include_router(collections.router, prefix="/api/v1")
     app.include_router(documents.router, prefix="/api/v1")
     app.include_router(chat.router, prefix="/api/v1")

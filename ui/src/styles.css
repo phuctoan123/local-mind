@@ -214,6 +214,10 @@ button:disabled {
 }
 
 .document-main strong {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   font-size: 14px;
   margin-bottom: 4px;
 }
@@ -807,17 +811,52 @@ button:disabled {
 }
 
 @media (max-width: 860px) {
+  body {
+    overflow: auto;
+  }
+
   .app {
+    display: block;
     grid-template-columns: 1fr;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
   }
 
   .sidebar {
     border-right: 0;
     border-bottom: 1px solid #d8dfda;
+    overflow: visible;
   }
 
   .chat-shell {
-    height: 70vh;
-    min-height: 0;
+    height: auto;
+    min-height: 720px;
+    overflow: visible;
+  }
+
+  .document-panel {
+    flex: none;
+  }
+
+  .document-list {
+    max-height: 48vh;
+  }
+
+  .messages {
+    min-height: 320px;
+    padding: 20px 22px;
+  }
+
+  .empty-state {
+    margin-top: 12vh;
+  }
+
+  .chat-toolbar,
+  .research-panel,
+  .retrieval-debug,
+  .composer {
+    padding-right: 22px;
+    padding-left: 22px;
   }
 }

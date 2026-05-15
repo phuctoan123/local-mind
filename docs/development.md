@@ -42,6 +42,36 @@ python -m pytest tests/integration
 Provider smoke scripts and manual end-to-end runs are still needed when changing
 real Ollama, Mistral, Google, or ChromaDB behavior.
 
+## Security And Deployment Notes
+
+For LAN or hosted use, set an API key and keep CORS origins explicit:
+
+```env
+API_KEY=replace_with_a_strong_secret
+CORS_ORIGINS=https://your-ui.example.com,http://localhost:3000
+```
+
+Requests under `/api/` require `X-API-Key` when `API_KEY` is configured. The
+basic OpenAI-compatible `/v1` route is intentionally not covered by that
+middleware yet, so place it behind a reverse proxy auth layer before exposing it.
+
+Upload hardening is configured through:
+
+```env
+MAX_UPLOAD_SIZE_MB=50
+ALLOWED_EXTENSIONS=pdf,txt,docx
+MAX_DOCX_ZIP_ENTRIES=500
+MAX_DOCX_UNCOMPRESSED_MB=100
+MAX_DOCX_COMPRESSION_RATIO=100
+```
+
+DOCX uploads are rejected if the archive looks suspiciously large, contains too
+many entries, or has an unsafe compression ratio. Ingestion errors shown through
+document metadata are sanitized so local filesystem paths are not exposed.
+
+Every response includes an `X-Request-ID` header. Send one from a reverse proxy
+or client to correlate frontend reports, API logs, and deployment logs.
+
 ## Hybrid Retrieval
 
 LocalMind can combine semantic vector search with BM25 keyword search:

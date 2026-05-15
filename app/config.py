@@ -77,6 +77,9 @@ class Settings:
     )
     api_key: str = os.getenv("API_KEY", "")
     max_upload_size_mb: int = int(os.getenv("MAX_UPLOAD_SIZE_MB", "50"))
+    max_docx_zip_entries: int = int(os.getenv("MAX_DOCX_ZIP_ENTRIES", "500"))
+    max_docx_uncompressed_mb: int = int(os.getenv("MAX_DOCX_UNCOMPRESSED_MB", "100"))
+    max_docx_compression_ratio: int = int(os.getenv("MAX_DOCX_COMPRESSION_RATIO", "100"))
     allowed_extensions: tuple[str, ...] = tuple(
         ext.strip().lower()
         for ext in os.getenv("ALLOWED_EXTENSIONS", "pdf,txt,docx").split(",")
